@@ -2,9 +2,8 @@
 Super Quality Bot for Profit Tracking
 Author: AI Assistant
 Description: Бот для учёта профитов с системой заявок, статистикой и настройкой.
-Добавлен шаблон приветствия, который отправляется пользователю после одобрения заявки.
-Редактируется через кнопку "Шаблон приветствия" в разделе "Изменить визуал".
-Исправлена работа кнопки для aiogram 3.24.0 и Python 3.14.2.
+Добавлен функционал "Выплаты" для админов: отображение неоплаченных профитов по пользователям,
+возможность отметить их как оплаченные.
 """
 
 import asyncio
@@ -91,9 +90,16 @@ def init_db():
             user_id INTEGER,
             amount REAL,
             date TEXT,
+            paid INTEGER DEFAULT 0,
             FOREIGN KEY(user_id) REFERENCES users(user_id)
         )
     """)
+
+    # Проверяем наличие колонки paid (для старых баз)
+    cur.execute("PRAGMA table_info(profits)")
+    profit_columns = [col[1] for col in cur.fetchall()]
+    if 'paid' not in profit_columns:
+        cur.execute("ALTER TABLE profits ADD COLUMN paid INTEGER DEFAULT 0")
 
     # Таблица настроек
     cur.execute("""
@@ -173,7 +179,7 @@ def db_add_profit(user_id: int, amount: float):
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
     cur.execute(
-        "INSERT INTO profits (user_id, amount, date) VALUES (?, ?, ?)",
+        "INSERT INTO profits (user_id, amount, date, paid) VALUES (?, ?, ?, 0)",
         (user_id, amount, datetime.now().isoformat())
     )
     conn.commit()
@@ -182,10 +188,51 @@ def db_add_profit(user_id: int, amount: float):
 def db_get_user_total_profit(user_id: int) -> float:
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
+    cur.execute("SELECT SUM(amount) FROM profits WHERE user_id=? AND paid=0", (user_id,))
+    row = cur.fetchone()
+    conn.close()
+    return row[0] if row[0] else 0.0
+
+def db_get_user_total_profit_all_time(user_id: int) -> float:
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
     cur.execute("SELECT SUM(amount) FROM profits WHERE user_id=?", (user_id,))
     row = cur.fetchone()
     conn.close()
     return row[0] if row[0] else 0.0
+
+def db_get_unpaid_profits_grouped() -> List[Dict]:
+    """Возвращает список пользователей с их неоплаченной суммой профитов."""
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT u.user_id, u.username, u.full_name, u.hide_name, SUM(p.amount) as total
+        FROM profits p
+        JOIN users u ON u.user_id = p.user_id
+        WHERE p.paid = 0
+        GROUP BY u.user_id
+        ORDER BY total DESC
+    """)
+    rows = cur.fetchall()
+    conn.close()
+    result = []
+    for row in rows:
+        result.append({
+            'user_id': row[0],
+            'username': row[1],
+            'full_name': row[2],
+            'hide_name': bool(row[3]),
+            'total': row[4]
+        })
+    return result
+
+def db_mark_profits_paid(user_id: int):
+    """Отмечает все неоплаченные профиты пользователя как оплаченные."""
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    cur.execute("UPDATE profits SET paid=1 WHERE user_id=? AND paid=0", (user_id,))
+    conn.commit()
+    conn.close()
 
 def db_get_top_all(limit: int = 10) -> List[Dict]:
     conn = sqlite3.connect(DB_NAME)
@@ -219,7 +266,7 @@ def db_get_top_daily(limit: int = 10) -> List[Dict]:
         SELECT u.user_id, u.username, u.full_name, u.hide_name, SUM(p.amount) as total
         FROM profits p
         JOIN users u ON u.user_id = p.user_id
-        WHERE p.date >= ?
+        WHERE p.date >= ? AND p.paid=0
         GROUP BY u.user_id
         ORDER BY total DESC
         LIMIT ?
@@ -245,7 +292,7 @@ def db_get_top_weekly(limit: int = 10) -> List[Dict]:
         SELECT u.user_id, u.username, u.full_name, u.hide_name, SUM(p.amount) as total
         FROM profits p
         JOIN users u ON u.user_id = p.user_id
-        WHERE p.date >= ?
+        WHERE p.date >= ? AND p.paid=0
         GROUP BY u.user_id
         ORDER BY total DESC
         LIMIT ?
@@ -315,7 +362,6 @@ def db_get_questions() -> List[str]:
 def db_set_questions(qs: List[str]):
     db_set_setting('questions', json.dumps(qs, ensure_ascii=False))
 
-# Функции для шаблона приветствия
 def db_get_welcome_template() -> str:
     return db_get_setting('welcome_template')
 
@@ -369,7 +415,7 @@ class EditVisualStates(StatesGroup):
     editing_questions = State()
     editing_question_index = State()
     adding_question = State()
-    editing_welcome_template = State()  # состояние для редактирования шаблона приветствия
+    editing_welcome_template = State()
 
 class AddAdminStates(StatesGroup):
     waiting_for_user_id = State()
@@ -386,6 +432,11 @@ class SetChatStates(StatesGroup):
 class ApplicationStates(StatesGroup):
     waiting_for_answer = State()
 
+# Новое состояние для выплат
+class PayoutStates(StatesGroup):
+    choosing_user = State()  # состояние при просмотре списка
+    confirm_payment = State()  # подтверждение оплаты
+
 # ==================== Клавиатуры ====================
 def get_main_keyboard(is_admin: bool = False, is_owner: bool = False) -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
@@ -395,6 +446,7 @@ def get_main_keyboard(is_admin: bool = False, is_owner: bool = False) -> ReplyKe
     if is_admin:
         builder.row(KeyboardButton(text="➕ Новый профит"))
         builder.row(KeyboardButton(text="🎨 Изменить визуал"))
+        builder.row(KeyboardButton(text="💸 Выплаты"))  # новая кнопка
     if is_owner:
         builder.row(KeyboardButton(text="👑 Управление"))
     return builder.as_markup(resize_keyboard=True)
@@ -461,6 +513,28 @@ def get_application_actions_keyboard(user_id: int) -> InlineKeyboardMarkup:
     builder.row(
         InlineKeyboardButton(text="✅ Одобрить", callback_data=f"app_approve_{user_id}"),
         InlineKeyboardButton(text="❌ Отклонить", callback_data=f"app_reject_{user_id}")
+    )
+    return builder.as_markup()
+
+def get_payout_list_keyboard(unpaid_users: List[Dict]) -> InlineKeyboardMarkup:
+    """Формирует клавиатуру со списком пользователей, имеющих неоплаченный профит."""
+    builder = InlineKeyboardBuilder()
+    for u in unpaid_users:
+        # Определяем отображаемое имя
+        if u['hide_name']:
+            display_name = "Скрыто"
+        else:
+            display_name = u['username'] or u['full_name'] or f"ID {u['user_id']}"
+        button_text = f"{display_name} — {u['total']:.2f} руб."
+        builder.row(InlineKeyboardButton(text=button_text, callback_data=f"payout_user_{u['user_id']}"))
+    builder.row(InlineKeyboardButton(text="🔙 Назад", callback_data="payout_back"))
+    return builder.as_markup()
+
+def get_payout_confirm_keyboard(user_id: int) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text="✅ Оплачено", callback_data=f"payout_confirm_{user_id}"),
+        InlineKeyboardButton(text="❌ Отмена", callback_data="payout_cancel")
     )
     return builder.as_markup()
 
@@ -779,7 +853,8 @@ async def my_stats(message: Message):
     user = db_get_user(user_id)
     if not user:
         return
-    total_profit = db_get_user_total_profit(user_id)
+    total_profit = db_get_user_total_profit_all_time(user_id)
+    unpaid = db_get_user_total_profit(user_id)
     joined = datetime.fromisoformat(user['joined_date'])
     days_in_bot = (datetime.now() - joined).days
     hide_status = "скрыто" if user['hide_name'] else "показывается"
@@ -788,7 +863,8 @@ async def my_stats(message: Message):
         f"🆔 ID: <code>{user_id}</code>\n"
         f"👤 Ник: @{user['username'] if user['username'] else 'отсутствует'}\n"
         f"📅 В боте: {days_in_bot} дн.\n"
-        f"💰 <b>Профит:</b> {total_profit:.2f} руб.\n"
+        f"💰 <b>Профит всего:</b> {total_profit:.2f} руб.\n"
+        f"💸 <b>Не оплачено:</b> {unpaid:.2f} руб.\n"
         f"👀 Имя в профитах: {hide_status}"
     )
     kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(
@@ -807,7 +883,8 @@ async def toggle_hide_name(callback: CallbackQuery):
     new_hide = not user['hide_name']
     db_update_user_hide(user_id, new_hide)
     await callback.answer(f"Имя теперь {'скрыто' if new_hide else 'показывается'}")
-    total_profit = db_get_user_total_profit(user_id)
+    total_profit = db_get_user_total_profit_all_time(user_id)
+    unpaid = db_get_user_total_profit(user_id)
     joined = datetime.fromisoformat(user['joined_date'])
     days_in_bot = (datetime.now() - joined).days
     text = (
@@ -815,7 +892,8 @@ async def toggle_hide_name(callback: CallbackQuery):
         f"🆔 ID: <code>{user_id}</code>\n"
         f"👤 Ник: @{user['username'] if user['username'] else 'отсутствует'}\n"
         f"📅 В боте: {days_in_bot} дн.\n"
-        f"💰 <b>Профит:</b> {total_profit:.2f} руб.\n"
+        f"💰 <b>Профит всего:</b> {total_profit:.2f} руб.\n"
+        f"💸 <b>Не оплачено:</b> {unpaid:.2f} руб.\n"
         f"👀 Имя в профитах: {'скрыто' if new_hide else 'показывается'}"
     )
     kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(
@@ -949,7 +1027,6 @@ async def edit_visual_start(message: Message, state: FSMContext):
     await message.answer("Выберите, что хотите изменить:", reply_markup=get_edit_visual_keyboard())
     await state.set_state(EditVisualStates.choosing_section)
 
-# Обработчик для кнопок редактирования (кроме шаблона приветствия)
 @dp.callback_query(StateFilter(EditVisualStates.choosing_section), F.data.startswith("edit_"), F.data != "edit_welcome_template")
 async def edit_visual_section(callback: CallbackQuery, state: FSMContext):
     section = callback.data.split("_")[1]
@@ -989,16 +1066,12 @@ async def edit_visual_section(callback: CallbackQuery, state: FSMContext):
     else:
         await callback.answer()
 
-# ==================== Обработчик для кнопки "Шаблон приветствия" (не зависит от состояния) ====================
 @dp.callback_query(F.data == "edit_welcome_template")
 async def edit_welcome_template_start(callback: CallbackQuery, state: FSMContext):
-    # Проверяем права
     if not (await is_admin(callback.from_user.id) or is_owner(callback.from_user.id)):
         await callback.answer("У вас нет прав.", show_alert=True)
         return
-    # Сразу отвечаем на callback, чтобы кнопка перестала крутиться
     await callback.answer()
-    # Отправляем новое сообщение с запросом текста
     await callback.message.answer(
         f"📝 <b>Редактирование шаблона приветствия</b>\n\n"
         f"Текущий текст:\n{db_get_welcome_template()}\n\n"
@@ -1007,7 +1080,6 @@ async def edit_welcome_template_start(callback: CallbackQuery, state: FSMContext
         f"Чтобы отменить, нажмите кнопку ниже.",
         reply_markup=get_cancel_keyboard()
     )
-    # Устанавливаем состояние для ввода
     await state.set_state(EditVisualStates.editing_welcome_template)
 
 @dp.message(EditVisualStates.editing_card_text, F.text, F.chat.type == "private")
@@ -1182,6 +1254,90 @@ async def handle_edit_url(message: Message, state: FSMContext):
     owner = is_owner(message.from_user.id)
     await message.answer("Главное меню", reply_markup=get_main_keyboard(admin, owner))
 
+# ==================== НОВЫЙ ФУНКЦИОНАЛ: ВЫПЛАТЫ ====================
+@dp.message(F.text == "💸 Выплаты", F.chat.type == "private")
+async def payouts_start(message: Message, state: FSMContext):
+    """Открывает список неоплаченных профитов."""
+    if not (await is_admin(message.from_user.id) or is_owner(message.from_user.id)):
+        await message.answer("У вас нет прав.")
+        return
+    unpaid = db_get_unpaid_profits_grouped()
+    if not unpaid:
+        await message.answer("Нет неоплаченных профитов.")
+        return
+    await message.answer(
+        "Список пользователей с неоплаченным профитом:",
+        reply_markup=get_payout_list_keyboard(unpaid)
+    )
+    await state.set_state(PayoutStates.choosing_user)
+
+@dp.callback_query(PayoutStates.choosing_user, F.data == "payout_back")
+async def payout_back(callback: CallbackQuery, state: FSMContext):
+    await callback.message.delete()
+    await state.clear()
+    await callback.answer()
+    admin = await is_admin(callback.from_user.id) or is_owner(callback.from_user.id)
+    owner = is_owner(callback.from_user.id)
+    await callback.message.answer("Главное меню", reply_markup=get_main_keyboard(admin, owner))
+
+@dp.callback_query(PayoutStates.choosing_user, F.data.startswith("payout_user_"))
+async def payout_user_selected(callback: CallbackQuery, state: FSMContext):
+    user_id = int(callback.data.split('_')[2])
+    user = db_get_user(user_id)
+    if not user:
+        await callback.answer("Пользователь не найден.")
+        return
+    total = db_get_user_total_profit(user_id)
+    if total == 0:
+        await callback.answer("У этого пользователя нет неоплаченного профита.")
+        await callback.message.delete()
+        await state.clear()
+        return
+    # Определяем имя для отображения
+    if user['hide_name']:
+        display_name = "Скрыто"
+    else:
+        display_name = user['username'] or user['full_name'] or f"ID {user_id}"
+    await callback.message.edit_text(
+        f"Пользователь: {display_name}\n"
+        f"Неоплаченная сумма: {total:.2f} руб.\n\n"
+        f"Подтвердите оплату:",
+        reply_markup=get_payout_confirm_keyboard(user_id)
+    )
+    await state.set_state(PayoutStates.confirm_payment)
+    await callback.answer()
+
+@dp.callback_query(PayoutStates.confirm_payment, F.data.startswith("payout_confirm_"))
+async def payout_confirm(callback: CallbackQuery, state: FSMContext):
+    user_id = int(callback.data.split('_')[2])
+    db_mark_profits_paid(user_id)
+    await callback.message.edit_text("✅ Профит отмечен как оплаченный.")
+    await asyncio.sleep(1)
+    # Возвращаемся к списку
+    unpaid = db_get_unpaid_profits_grouped()
+    if unpaid:
+        await callback.message.answer(
+            "Список пользователей с неоплаченным профитом:",
+            reply_markup=get_payout_list_keyboard(unpaid)
+        )
+        await state.set_state(PayoutStates.choosing_user)
+    else:
+        await callback.message.answer("Нет неоплаченных профитов.")
+        await state.clear()
+        admin = await is_admin(callback.from_user.id) or is_owner(callback.from_user.id)
+        owner = is_owner(callback.from_user.id)
+        await callback.message.answer("Главное меню", reply_markup=get_main_keyboard(admin, owner))
+    await callback.answer()
+
+@dp.callback_query(PayoutStates.confirm_payment, F.data == "payout_cancel")
+async def payout_cancel(callback: CallbackQuery, state: FSMContext):
+    await callback.message.delete()
+    await state.clear()
+    await callback.answer()
+    admin = await is_admin(callback.from_user.id) or is_owner(callback.from_user.id)
+    owner = is_owner(callback.from_user.id)
+    await callback.message.answer("Главное меню", reply_markup=get_main_keyboard(admin, owner))
+
 # ==================== Команды в групповом чате ====================
 async def send_group_response(message: Message, text: str, delay: int = 60, reply_markup: InlineKeyboardMarkup = None):
     bot_msg = await message.reply(text, reply_markup=reply_markup)
@@ -1294,7 +1450,8 @@ async def group_my_profile(message: Message):
     if not user:
         await send_group_response(message, "Вы не зарегистрированы. Напишите боту в личные сообщения.", 15)
         return
-    total_profit = db_get_user_total_profit(user_id)
+    total_profit = db_get_user_total_profit_all_time(user_id)
+    unpaid = db_get_user_total_profit(user_id)
     joined = datetime.fromisoformat(user['joined_date'])
     days_in_bot = (datetime.now() - joined).days
     text = (
@@ -1303,7 +1460,8 @@ async def group_my_profile(message: Message):
         f"👤 Имя: {user['full_name']}\n"
         f"📱 Username: @{user['username'] if user['username'] else 'нет'}\n"
         f"📅 В боте: {days_in_bot} дн.\n"
-        f"💰 <b>Профит:</b> {total_profit:.2f} руб."
+        f"💰 <b>Профит всего:</b> {total_profit:.2f} руб.\n"
+        f"💸 <b>Не оплачено:</b> {unpaid:.2f} руб."
     )
     await send_group_response(message, text, 15)
 
