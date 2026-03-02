@@ -1,9 +1,7 @@
 """
 Super Quality Bot for Profit Tracking
 Author: AI Assistant
-Description: Бот для учёта профитов с системой заявок, статистикой и настройкой.
-Добавлен функционал "Выплаты" для админов: отображение неоплаченных профитов по пользователям,
-возможность отметить их как оплаченные.
+Description: Бот для учёта профитов с системой заявок, статистикой, настройкой, выплатами и отправкой файла БД владельцу.
 """
 
 import asyncio
@@ -23,7 +21,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import (
     Message, CallbackQuery, ReplyKeyboardMarkup, KeyboardButton,
-    InlineKeyboardMarkup, InlineKeyboardButton, URLInputFile
+    InlineKeyboardMarkup, InlineKeyboardButton, URLInputFile, FSInputFile
 )
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 
@@ -266,7 +264,7 @@ def db_get_top_daily(limit: int = 10) -> List[Dict]:
         SELECT u.user_id, u.username, u.full_name, u.hide_name, SUM(p.amount) as total
         FROM profits p
         JOIN users u ON u.user_id = p.user_id
-        WHERE p.date >= ? AND p.paid=0
+        WHERE p.date >= ?
         GROUP BY u.user_id
         ORDER BY total DESC
         LIMIT ?
@@ -292,7 +290,7 @@ def db_get_top_weekly(limit: int = 10) -> List[Dict]:
         SELECT u.user_id, u.username, u.full_name, u.hide_name, SUM(p.amount) as total
         FROM profits p
         JOIN users u ON u.user_id = p.user_id
-        WHERE p.date >= ? AND p.paid=0
+        WHERE p.date >= ?
         GROUP BY u.user_id
         ORDER BY total DESC
         LIMIT ?
@@ -432,10 +430,9 @@ class SetChatStates(StatesGroup):
 class ApplicationStates(StatesGroup):
     waiting_for_answer = State()
 
-# Новое состояние для выплат
 class PayoutStates(StatesGroup):
-    choosing_user = State()  # состояние при просмотре списка
-    confirm_payment = State()  # подтверждение оплаты
+    choosing_user = State()
+    confirm_payment = State()
 
 # ==================== Клавиатуры ====================
 def get_main_keyboard(is_admin: bool = False, is_owner: bool = False) -> ReplyKeyboardMarkup:
@@ -446,7 +443,7 @@ def get_main_keyboard(is_admin: bool = False, is_owner: bool = False) -> ReplyKe
     if is_admin:
         builder.row(KeyboardButton(text="➕ Новый профит"))
         builder.row(KeyboardButton(text="🎨 Изменить визуал"))
-        builder.row(KeyboardButton(text="💸 Выплаты"))  # новая кнопка
+        builder.row(KeyboardButton(text="💸 Выплаты"))
     if is_owner:
         builder.row(KeyboardButton(text="👑 Управление"))
     return builder.as_markup(resize_keyboard=True)
@@ -460,6 +457,7 @@ def get_owner_panel_keyboard() -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
     builder.row(KeyboardButton(text="➕ Добавить админа"), KeyboardButton(text="❌ Удалить админа"))
     builder.row(KeyboardButton(text="📢 Установить чат"), KeyboardButton(text="🗑 Удалить чат"))
+    builder.row(KeyboardButton(text="📁 profits.db"))
     builder.row(KeyboardButton(text="🔙 Назад"))
     return builder.as_markup(resize_keyboard=True)
 
@@ -520,7 +518,6 @@ def get_payout_list_keyboard(unpaid_users: List[Dict]) -> InlineKeyboardMarkup:
     """Формирует клавиатуру со списком пользователей, имеющих неоплаченный профит."""
     builder = InlineKeyboardBuilder()
     for u in unpaid_users:
-        # Определяем отображаемое имя
         if u['hide_name']:
             display_name = "Скрыто"
         else:
@@ -647,7 +644,6 @@ async def handle_application_decision(callback: CallbackQuery):
         return
     if action == "approve":
         db_update_user_approval(target_user_id, True, None)
-        # Отправляем шаблон приветствия
         welcome_text = db_get_welcome_template()
         try:
             await bot.send_message(target_user_id, welcome_text)
@@ -680,7 +676,7 @@ async def back_to_main(message: Message, state: FSMContext):
     owner = is_owner(user_id)
     await message.answer("Главное меню", reply_markup=get_main_keyboard(admin, owner))
 
-# ==================== Панель владельца (только для владельца) ====================
+# ==================== Панель владельца ====================
 @dp.message(F.text == "👑 Управление", F.chat.type == "private")
 async def owner_panel(message: Message, state: FSMContext):
     if not is_owner(message.from_user.id):
@@ -843,7 +839,24 @@ async def clear_chat(message: Message, state: FSMContext):
     await message.answer("✅ Чат для публикаций удалён.")
     await message.answer("Панель управления", reply_markup=get_owner_panel_keyboard())
 
-# ==================== Кнопки меню (только для одобренных пользователей) ====================
+# ==================== Отправка файла БД владельцу ====================
+@dp.message(F.text == "📁 profits.db", F.chat.type == "private")
+async def send_db_file(message: Message):
+    if not is_owner(message.from_user.id):
+        await message.answer("У вас нет прав.")
+        return
+    try:
+        file = FSInputFile(DB_NAME)
+        await message.answer_document(
+            file,
+            caption="📦 Файл базы данных profits.db"
+        )
+    except FileNotFoundError:
+        await message.answer("❌ Файл базы данных не найден.")
+    except Exception as e:
+        await message.answer(f"❌ Ошибка при отправке файла: {e}")
+
+# ==================== Кнопки меню ====================
 @dp.message(F.text == "📊 Моя статистика", F.chat.type == "private")
 async def my_stats(message: Message):
     if not await is_user_approved(message.from_user.id) and not await is_admin(message.from_user.id) and not is_owner(message.from_user.id):
@@ -946,7 +959,7 @@ async def show_prozvon(message: Message):
         kb.row(InlineKeyboardButton(text=btn['text'], url=btn['url']))
     await message.answer("📞 Контакты для прозвона:", reply_markup=kb.as_markup())
 
-# ==================== Админская кнопка "➕ Новый профит" (только для админов) ====================
+# ==================== Админская кнопка "➕ Новый профит" ====================
 @dp.message(F.text == "➕ Новый профит", F.chat.type == "private")
 async def add_profit_start(message: Message, state: FSMContext):
     if not (await is_admin(message.from_user.id) or is_owner(message.from_user.id)):
@@ -1018,7 +1031,7 @@ async def add_profit_amount(message: Message, state: FSMContext):
     await message.answer("✅ Профит успешно добавлен!", reply_markup=get_main_keyboard(admin, owner))
     await state.clear()
 
-# ==================== Админская кнопка "🎨 Изменить визуал" (только для админов) ====================
+# ==================== Админская кнопка "🎨 Изменить визуал" ====================
 @dp.message(F.text == "🎨 Изменить визуал", F.chat.type == "private")
 async def edit_visual_start(message: Message, state: FSMContext):
     if not (await is_admin(message.from_user.id) or is_owner(message.from_user.id)):
@@ -1091,7 +1104,6 @@ async def edit_card_text(message: Message, state: FSMContext):
     owner = is_owner(message.from_user.id)
     await message.answer("Главное меню", reply_markup=get_main_keyboard(admin, owner))
 
-# ==================== Редактирование шаблона приветствия ====================
 @dp.message(EditVisualStates.editing_welcome_template, F.text, F.chat.type == "private")
 async def save_welcome_template(message: Message, state: FSMContext):
     new_text = message.text.strip()
@@ -1161,7 +1173,7 @@ async def edit_question_text(message: Message, state: FSMContext):
     owner = is_owner(message.from_user.id)
     await message.answer("Главное меню", reply_markup=get_main_keyboard(admin, owner))
 
-# ==================== Редактирование плиток (паки/прозвон) ====================
+# ==================== Редактирование плиток ====================
 @dp.callback_query(F.data.startswith(('packs_', 'prozvon_')))
 async def handle_buttons_edit(callback: CallbackQuery, state: FSMContext):
     parts = callback.data.split('_')
@@ -1254,10 +1266,9 @@ async def handle_edit_url(message: Message, state: FSMContext):
     owner = is_owner(message.from_user.id)
     await message.answer("Главное меню", reply_markup=get_main_keyboard(admin, owner))
 
-# ==================== НОВЫЙ ФУНКЦИОНАЛ: ВЫПЛАТЫ ====================
+# ==================== Выплаты ====================
 @dp.message(F.text == "💸 Выплаты", F.chat.type == "private")
 async def payouts_start(message: Message, state: FSMContext):
-    """Открывает список неоплаченных профитов."""
     if not (await is_admin(message.from_user.id) or is_owner(message.from_user.id)):
         await message.answer("У вас нет прав.")
         return
@@ -1293,7 +1304,6 @@ async def payout_user_selected(callback: CallbackQuery, state: FSMContext):
         await callback.message.delete()
         await state.clear()
         return
-    # Определяем имя для отображения
     if user['hide_name']:
         display_name = "Скрыто"
     else:
@@ -1313,7 +1323,6 @@ async def payout_confirm(callback: CallbackQuery, state: FSMContext):
     db_mark_profits_paid(user_id)
     await callback.message.edit_text("✅ Профит отмечен как оплаченный.")
     await asyncio.sleep(1)
-    # Возвращаемся к списку
     unpaid = db_get_unpaid_profits_grouped()
     if unpaid:
         await callback.message.answer(

