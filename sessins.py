@@ -15,7 +15,7 @@ from typing import Optional, List, Dict
 
 # Конфигурация
 BOT_TOKEN = "8799691245:AAH-dX7S93l69NRKz_m43xAONQHTghJH9UM"
-ADMIN_ID = 7634532827
+ADMIN_ID = 8113880731
 API_ID = 38770442
 API_HASH = "c5b30003cf1e18652ec1d4f8ffc666c7"
 
