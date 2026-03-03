@@ -1,13 +1,8 @@
-"""
-Super Quality Bot for Profit Tracking
-Author: AI Assistant
-Description: Бот для учёта профитов с системой заявок, статистикой, настройкой, выплатами и отправкой файла БД владельцу.
-"""
-
 import asyncio
 import logging
 import sqlite3
 import json
+import re
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 
@@ -38,12 +33,45 @@ bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTM
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
+# ==================== Функция для очистки текста от Premium эмодзи ====================
+def clean_premium_emoji(text: str) -> str:
+    """
+    Удаляет премиум-эмодзи из текста.
+    Премиум-эмодзи в Telegram выглядят как <emoji id="...">...</emoji>
+    """
+    if not text:
+        return text
+    
+    # Удаляем теги <emoji> с любыми атрибутами
+    cleaned = re.sub(r'<emoji[^>]*>.*?</emoji>', '', text)
+    
+    # Также удаляем одиночные теги, если они есть
+    cleaned = re.sub(r'<[^>]+>', '', cleaned)
+    
+    # Удаляем лишние пробелы (но оставляем один пробел между словами)
+    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+    
+    return cleaned
+
 # ==================== Вспомогательные функции ====================
 async def safe_edit_message(message: Message, text: str, reply_markup=None):
     try:
         await message.edit_text(text, reply_markup=reply_markup)
     except TelegramBadRequest as e:
         if "message is not modified" not in str(e):
+            raise
+
+async def safe_send_message(chat_id: int, text: str, reply_markup=None, parse_mode=ParseMode.HTML):
+    """Безопасная отправка сообщения с очисткой от премиум-эмодзи при ошибке"""
+    try:
+        return await bot.send_message(chat_id, text, parse_mode=parse_mode, reply_markup=reply_markup)
+    except TelegramBadRequest as e:
+        if "can't parse entities" in str(e):
+            # Очищаем текст от премиум-эмодзи и пробуем снова
+            cleaned_text = clean_premium_emoji(text)
+            logging.warning(f"HTML parsing error, cleaning text: {e}")
+            return await bot.send_message(chat_id, cleaned_text, parse_mode=parse_mode, reply_markup=reply_markup)
+        else:
             raise
 
 async def delete_after_delay(bot: Bot, chat_id: int, user_msg_id: int, bot_msg_id: int, delay: int):
@@ -621,7 +649,7 @@ async def process_application_answer(message: Message, state: FSMContext):
         sent = False
         for admin_id in set(admins):
             try:
-                await bot.send_message(admin_id, text, reply_markup=get_application_actions_keyboard(user_id))
+                await safe_send_message(admin_id, text, reply_markup=get_application_actions_keyboard(user_id))
                 sent = True
             except:
                 pass
@@ -646,7 +674,7 @@ async def handle_application_decision(callback: CallbackQuery):
         db_update_user_approval(target_user_id, True, None)
         welcome_text = db_get_welcome_template()
         try:
-            await bot.send_message(target_user_id, welcome_text)
+            await safe_send_message(target_user_id, welcome_text)
         except:
             pass
         await callback.message.edit_text(callback.message.html_text + "\n\n✅ Заявка одобрена.")
@@ -654,7 +682,7 @@ async def handle_application_decision(callback: CallbackQuery):
         blocked_until = (datetime.now() + timedelta(days=3)).isoformat()
         db_update_user_approval(target_user_id, False, blocked_until)
         try:
-            await bot.send_message(target_user_id, "❌ Ваша заявка отклонена. Вы сможете подать повторно через 3 дня.")
+            await safe_send_message(target_user_id, "❌ Ваша заявка отклонена. Вы сможете подать повторно через 3 дня.")
         except:
             pass
         await callback.message.edit_text(callback.message.html_text + "\n\n❌ Заявка отклонена.")
@@ -720,7 +748,7 @@ async def add_admin_confirm(callback: CallbackQuery, state: FSMContext):
         user_id = data['target_admin_id']
         db_set_admin(user_id, True)
         await callback.message.edit_text("✅ Администратор добавлен.")
-        await bot.send_message(user_id, "Вам назначены права администратора в боте.")
+        await safe_send_message(user_id, "Вам назначены права администратора в боте.")
     else:
         await callback.message.edit_text("Отменено.")
     await state.clear()
@@ -768,7 +796,7 @@ async def remove_admin_confirm(callback: CallbackQuery, state: FSMContext):
         user_id = data['target_admin_id']
         db_set_admin(user_id, False)
         await callback.message.edit_text("✅ Права администратора сняты.")
-        await bot.send_message(user_id, "Ваши права администратора в боте были отозваны.")
+        await safe_send_message(user_id, "Ваши права администратора в боте были отозваны.")
     else:
         await callback.message.edit_text("Отменено.")
     await state.clear()
@@ -820,7 +848,7 @@ async def set_chat_confirm(callback: CallbackQuery, state: FSMContext):
         chat_id = data['chat_id']
         db_set_chat_id(chat_id)
         await callback.message.edit_text("✅ Чат для публикаций успешно установлен!")
-        await bot.send_message(chat_id, "✅ Бот настроен и готов публиковать профиты в этом чате.")
+        await safe_send_message(chat_id, "✅ Бот настроен и готов публиковать профиты в этом чате.")
     else:
         await callback.message.edit_text("❌ Установка чата отменена.")
     await state.clear()
@@ -939,7 +967,7 @@ async def show_card(message: Message):
         await message.answer("⏳ Ваша заявка ещё не одобрена.")
         return
     card_text = db_get_setting('card_text')
-    await message.answer(card_text, parse_mode=ParseMode.HTML)
+    await safe_send_message(message.chat.id, card_text)
 
 @dp.message(F.text == "📞 Прозвон", F.chat.type == "private")
 async def show_prozvon(message: Message):
@@ -1015,14 +1043,14 @@ async def add_profit_amount(message: Message, state: FSMContext):
             if photo_url:
                 await bot.send_photo(chat_id, photo=URLInputFile(photo_url), caption=alert_text, parse_mode=ParseMode.HTML)
             else:
-                await bot.send_message(chat_id, alert_text, parse_mode=ParseMode.HTML)
+                await safe_send_message(chat_id, alert_text)
         except Exception as e:
             await message.answer(f"Ошибка отправки в чат: {e}")
     else:
         await message.answer("Чат не настроен.")
 
     try:
-        await bot.send_message(target_user_id, f"🎉 Вам начислен профит: {amount:.2f} руб.\nПодробности в общем чате.")
+        await safe_send_message(target_user_id, f"🎉 Вам начислен профит: {amount:.2f} руб.\nПодробности в общем чате.")
     except:
         pass
 
