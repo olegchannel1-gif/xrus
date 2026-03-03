@@ -33,10 +33,7 @@ bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTM
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
-<<<<<<< HEAD
-=======
 
->>>>>>> d93ea41 (blyablya)
 # ==================== Функция для очистки текста от Premium эмодзи ====================
 def clean_premium_emoji(text: str) -> str:
     """
@@ -45,20 +42,6 @@ def clean_premium_emoji(text: str) -> str:
     """
     if not text:
         return text
-<<<<<<< HEAD
-    
-    # Удаляем теги <emoji> с любыми атрибутами
-    cleaned = re.sub(r'<emoji[^>]*>.*?</emoji>', '', text)
-    
-    # Также удаляем одиночные теги, если они есть
-    cleaned = re.sub(r'<[^>]+>', '', cleaned)
-    
-    # Удаляем лишние пробелы (но оставляем один пробел между словами)
-    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
-    
-    return cleaned
-
-=======
 
     # Удаляем теги <emoji> с любыми атрибутами
     cleaned = re.sub(r'<emoji[^>]*>.*?</emoji>', '', text)
@@ -72,7 +55,6 @@ def clean_premium_emoji(text: str) -> str:
     return cleaned
 
 
->>>>>>> d93ea41 (blyablya)
 # ==================== Вспомогательные функции ====================
 async def safe_edit_message(message: Message, text: str, reply_markup=None):
     try:
@@ -81,10 +63,7 @@ async def safe_edit_message(message: Message, text: str, reply_markup=None):
         if "message is not modified" not in str(e):
             raise
 
-<<<<<<< HEAD
-=======
 
->>>>>>> d93ea41 (blyablya)
 async def safe_send_message(chat_id: int, text: str, reply_markup=None, parse_mode=ParseMode.HTML):
     """Безопасная отправка сообщения с очисткой от премиум-эмодзи при ошибке"""
     try:
@@ -98,10 +77,7 @@ async def safe_send_message(chat_id: int, text: str, reply_markup=None, parse_mo
         else:
             raise
 
-<<<<<<< HEAD
-=======
 
->>>>>>> d93ea41 (blyablya)
 async def delete_after_delay(bot: Bot, chat_id: int, user_msg_id: int, bot_msg_id: int, delay: int):
     await asyncio.sleep(delay)
     try:
@@ -1073,10 +1049,7 @@ async def show_card(message: Message):
         return
     card_text = db_get_setting('card_text')
     await safe_send_message(message.chat.id, card_text)
-<<<<<<< HEAD
-=======
 
->>>>>>> d93ea41 (blyablya)
 
 @dp.message(F.text == "📞 Прозвон", F.chat.type == "private")
 async def show_prozvon(message: Message):
