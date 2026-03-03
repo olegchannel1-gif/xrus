@@ -33,6 +33,10 @@ bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTM
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> d93ea41 (blyablya)
 # ==================== Функция для очистки текста от Premium эмодзи ====================
 def clean_premium_emoji(text: str) -> str:
     """
@@ -41,6 +45,7 @@ def clean_premium_emoji(text: str) -> str:
     """
     if not text:
         return text
+<<<<<<< HEAD
     
     # Удаляем теги <emoji> с любыми атрибутами
     cleaned = re.sub(r'<emoji[^>]*>.*?</emoji>', '', text)
@@ -53,6 +58,21 @@ def clean_premium_emoji(text: str) -> str:
     
     return cleaned
 
+=======
+
+    # Удаляем теги <emoji> с любыми атрибутами
+    cleaned = re.sub(r'<emoji[^>]*>.*?</emoji>', '', text)
+
+    # Также удаляем одиночные теги, если они есть
+    cleaned = re.sub(r'<[^>]+>', '', cleaned)
+
+    # Удаляем лишние пробелы (но оставляем один пробел между словами)
+    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+
+    return cleaned
+
+
+>>>>>>> d93ea41 (blyablya)
 # ==================== Вспомогательные функции ====================
 async def safe_edit_message(message: Message, text: str, reply_markup=None):
     try:
@@ -61,6 +81,10 @@ async def safe_edit_message(message: Message, text: str, reply_markup=None):
         if "message is not modified" not in str(e):
             raise
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> d93ea41 (blyablya)
 async def safe_send_message(chat_id: int, text: str, reply_markup=None, parse_mode=ParseMode.HTML):
     """Безопасная отправка сообщения с очисткой от премиум-эмодзи при ошибке"""
     try:
@@ -74,6 +98,10 @@ async def safe_send_message(chat_id: int, text: str, reply_markup=None, parse_mo
         else:
             raise
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> d93ea41 (blyablya)
 async def delete_after_delay(bot: Bot, chat_id: int, user_msg_id: int, bot_msg_id: int, delay: int):
     await asyncio.sleep(delay)
     try:
@@ -84,6 +112,7 @@ async def delete_after_delay(bot: Bot, chat_id: int, user_msg_id: int, bot_msg_i
         await bot.delete_message(chat_id, bot_msg_id)
     except Exception:
         pass
+
 
 # ==================== Работа с базой данных ====================
 def init_db():
@@ -156,11 +185,14 @@ def init_db():
     conn.commit()
     conn.close()
 
+
 # Функции для пользователей
 def db_get_user(user_id: int) -> Optional[Dict]:
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
-    cur.execute("SELECT user_id, username, full_name, joined_date, hide_name, is_admin, is_approved, blocked_until FROM users WHERE user_id=?", (user_id,))
+    cur.execute(
+        "SELECT user_id, username, full_name, joined_date, hide_name, is_admin, is_approved, blocked_until FROM users WHERE user_id=?",
+        (user_id,))
     row = cur.fetchone()
     conn.close()
     if row:
@@ -176,6 +208,7 @@ def db_get_user(user_id: int) -> Optional[Dict]:
         }
     return None
 
+
 def db_create_user(user_id: int, username: str = None, full_name: str = None):
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
@@ -186,12 +219,15 @@ def db_create_user(user_id: int, username: str = None, full_name: str = None):
     conn.commit()
     conn.close()
 
+
 def db_update_user_approval(user_id: int, approved: bool, blocked_until: str = None):
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
-    cur.execute("UPDATE users SET is_approved=?, blocked_until=? WHERE user_id=?", (1 if approved else 0, blocked_until, user_id))
+    cur.execute("UPDATE users SET is_approved=?, blocked_until=? WHERE user_id=?",
+                (1 if approved else 0, blocked_until, user_id))
     conn.commit()
     conn.close()
+
 
 def db_update_user_hide(user_id: int, hide: bool):
     conn = sqlite3.connect(DB_NAME)
@@ -199,6 +235,7 @@ def db_update_user_hide(user_id: int, hide: bool):
     cur.execute("UPDATE users SET hide_name=? WHERE user_id=?", (1 if hide else 0, user_id))
     conn.commit()
     conn.close()
+
 
 # Профиты
 def db_add_profit(user_id: int, amount: float):
@@ -211,6 +248,7 @@ def db_add_profit(user_id: int, amount: float):
     conn.commit()
     conn.close()
 
+
 def db_get_user_total_profit(user_id: int) -> float:
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
@@ -219,6 +257,7 @@ def db_get_user_total_profit(user_id: int) -> float:
     conn.close()
     return row[0] if row[0] else 0.0
 
+
 def db_get_user_total_profit_all_time(user_id: int) -> float:
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
@@ -226,6 +265,7 @@ def db_get_user_total_profit_all_time(user_id: int) -> float:
     row = cur.fetchone()
     conn.close()
     return row[0] if row[0] else 0.0
+
 
 def db_get_unpaid_profits_grouped() -> List[Dict]:
     """Возвращает список пользователей с их неоплаченной суммой профитов."""
@@ -252,6 +292,7 @@ def db_get_unpaid_profits_grouped() -> List[Dict]:
         })
     return result
 
+
 def db_mark_profits_paid(user_id: int):
     """Отмечает все неоплаченные профиты пользователя как оплаченные."""
     conn = sqlite3.connect(DB_NAME)
@@ -259,6 +300,7 @@ def db_mark_profits_paid(user_id: int):
     cur.execute("UPDATE profits SET paid=1 WHERE user_id=? AND paid=0", (user_id,))
     conn.commit()
     conn.close()
+
 
 def db_get_top_all(limit: int = 10) -> List[Dict]:
     conn = sqlite3.connect(DB_NAME)
@@ -283,6 +325,7 @@ def db_get_top_all(limit: int = 10) -> List[Dict]:
             'total': row[4]
         })
     return result
+
 
 def db_get_top_daily(limit: int = 10) -> List[Dict]:
     today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
@@ -310,6 +353,7 @@ def db_get_top_daily(limit: int = 10) -> List[Dict]:
         })
     return result
 
+
 def db_get_top_weekly(limit: int = 10) -> List[Dict]:
     week_ago = (datetime.now() - timedelta(days=7)).isoformat()
     conn = sqlite3.connect(DB_NAME)
@@ -336,6 +380,7 @@ def db_get_top_weekly(limit: int = 10) -> List[Dict]:
         })
     return result
 
+
 def db_get_total_profit_all() -> float:
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
@@ -343,6 +388,7 @@ def db_get_total_profit_all() -> float:
     row = cur.fetchone()
     conn.close()
     return row[0] if row[0] else 0.0
+
 
 def db_get_total_profit_daily() -> float:
     today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
@@ -353,6 +399,7 @@ def db_get_total_profit_daily() -> float:
     conn.close()
     return row[0] if row[0] else 0.0
 
+
 def db_get_total_profit_weekly() -> float:
     week_ago = (datetime.now() - timedelta(days=7)).isoformat()
     conn = sqlite3.connect(DB_NAME)
@@ -361,6 +408,7 @@ def db_get_total_profit_weekly() -> float:
     row = cur.fetchone()
     conn.close()
     return row[0] if row[0] else 0.0
+
 
 # Настройки
 def db_get_setting(key: str) -> str:
@@ -371,12 +419,14 @@ def db_get_setting(key: str) -> str:
     conn.close()
     return row[0] if row else ''
 
+
 def db_set_setting(key: str, value: str):
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
     cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, value))
     conn.commit()
     conn.close()
+
 
 def db_get_questions() -> List[str]:
     qs = db_get_setting('questions')
@@ -385,14 +435,18 @@ def db_get_questions() -> List[str]:
     except:
         return []
 
+
 def db_set_questions(qs: List[str]):
     db_set_setting('questions', json.dumps(qs, ensure_ascii=False))
+
 
 def db_get_welcome_template() -> str:
     return db_get_setting('welcome_template')
 
+
 def db_set_welcome_template(text: str):
     db_set_setting('welcome_template', text)
+
 
 # Админы
 def db_get_all_admins() -> List[int]:
@@ -403,12 +457,14 @@ def db_get_all_admins() -> List[int]:
     conn.close()
     return [row[0] for row in rows]
 
+
 def db_set_admin(user_id: int, admin: bool = True):
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
     cur.execute("UPDATE users SET is_admin=? WHERE user_id=?", (1 if admin else 0, user_id))
     conn.commit()
     conn.close()
+
 
 # Чат
 def db_get_chat_id() -> Optional[int]:
@@ -420,16 +476,20 @@ def db_get_chat_id() -> Optional[int]:
             return None
     return None
 
+
 def db_set_chat_id(chat_id: int):
     db_set_setting('chat_id', str(chat_id))
 
+
 def db_clear_chat_id():
     db_set_setting('chat_id', '')
+
 
 # ==================== Машины состояний ====================
 class AddProfitStates(StatesGroup):
     waiting_for_user_id = State()
     waiting_for_amount = State()
+
 
 class EditVisualStates(StatesGroup):
     choosing_section = State()
@@ -443,24 +503,30 @@ class EditVisualStates(StatesGroup):
     adding_question = State()
     editing_welcome_template = State()
 
+
 class AddAdminStates(StatesGroup):
     waiting_for_user_id = State()
     waiting_for_confirm = State()
+
 
 class RemoveAdminStates(StatesGroup):
     waiting_for_user_id = State()
     waiting_for_confirm = State()
 
+
 class SetChatStates(StatesGroup):
     waiting_for_chat_id = State()
     waiting_for_confirm = State()
 
+
 class ApplicationStates(StatesGroup):
     waiting_for_answer = State()
+
 
 class PayoutStates(StatesGroup):
     choosing_user = State()
     confirm_payment = State()
+
 
 # ==================== Клавиатуры ====================
 def get_main_keyboard(is_admin: bool = False, is_owner: bool = False) -> ReplyKeyboardMarkup:
@@ -476,10 +542,12 @@ def get_main_keyboard(is_admin: bool = False, is_owner: bool = False) -> ReplyKe
         builder.row(KeyboardButton(text="👑 Управление"))
     return builder.as_markup(resize_keyboard=True)
 
+
 def get_cancel_keyboard() -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
     builder.add(KeyboardButton(text="🚫 Отмена"))
     return builder.as_markup(resize_keyboard=True)
+
 
 def get_owner_panel_keyboard() -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
@@ -488,6 +556,7 @@ def get_owner_panel_keyboard() -> ReplyKeyboardMarkup:
     builder.row(KeyboardButton(text="📁 profits.db"))
     builder.row(KeyboardButton(text="🔙 Назад"))
     return builder.as_markup(resize_keyboard=True)
+
 
 def get_edit_visual_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
@@ -499,14 +568,16 @@ def get_edit_visual_keyboard() -> InlineKeyboardMarkup:
     builder.row(InlineKeyboardButton(text="🔙 Назад", callback_data="edit_back"))
     return builder.as_markup()
 
+
 def get_questions_edit_keyboard(questions: List[str]) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     for i, q in enumerate(questions):
         builder.row(InlineKeyboardButton(text=f"✏️ {q[:30]}...", callback_data=f"q_edit_{i}"))
-        builder.row(InlineKeyboardButton(text=f"❌ Удалить {i+1}", callback_data=f"q_del_{i}"))
+        builder.row(InlineKeyboardButton(text=f"❌ Удалить {i + 1}", callback_data=f"q_del_{i}"))
     builder.row(InlineKeyboardButton(text="➕ Добавить вопрос", callback_data="q_add"))
     builder.row(InlineKeyboardButton(text="🔙 Назад", callback_data="q_back"))
     return builder.as_markup()
+
 
 def get_buttons_edit_keyboard(buttons: List[Dict], prefix: str) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
@@ -517,6 +588,7 @@ def get_buttons_edit_keyboard(buttons: List[Dict], prefix: str) -> InlineKeyboar
     builder.row(InlineKeyboardButton(text="🔙 Назад", callback_data=f"{prefix}_back"))
     return builder.as_markup()
 
+
 def get_confirm_keyboard(action: str) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(
@@ -524,6 +596,7 @@ def get_confirm_keyboard(action: str) -> InlineKeyboardMarkup:
         InlineKeyboardButton(text="❌ Нет", callback_data=f"cancel_{action}")
     )
     return builder.as_markup()
+
 
 def get_stats_switch_keyboard(current: str) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
@@ -534,6 +607,7 @@ def get_stats_switch_keyboard(current: str) -> InlineKeyboardMarkup:
     )
     return builder.as_markup()
 
+
 def get_application_actions_keyboard(user_id: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(
@@ -541,6 +615,7 @@ def get_application_actions_keyboard(user_id: int) -> InlineKeyboardMarkup:
         InlineKeyboardButton(text="❌ Отклонить", callback_data=f"app_reject_{user_id}")
     )
     return builder.as_markup()
+
 
 def get_payout_list_keyboard(unpaid_users: List[Dict]) -> InlineKeyboardMarkup:
     """Формирует клавиатуру со списком пользователей, имеющих неоплаченный профит."""
@@ -555,6 +630,7 @@ def get_payout_list_keyboard(unpaid_users: List[Dict]) -> InlineKeyboardMarkup:
     builder.row(InlineKeyboardButton(text="🔙 Назад", callback_data="payout_back"))
     return builder.as_markup()
 
+
 def get_payout_confirm_keyboard(user_id: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(
@@ -563,16 +639,20 @@ def get_payout_confirm_keyboard(user_id: int) -> InlineKeyboardMarkup:
     )
     return builder.as_markup()
 
+
 # ==================== Проверки прав ====================
 def is_owner(user_id: int) -> bool:
     return user_id == OWNER_ID
+
 
 async def is_admin(user_id: int) -> bool:
     user = db_get_user(user_id)
     return user and user['is_admin']
 
+
 def is_chat_configured() -> bool:
     return db_get_chat_id() is not None
+
 
 async def is_user_approved(user_id: int) -> bool:
     user = db_get_user(user_id)
@@ -587,6 +667,7 @@ async def is_user_approved(user_id: int) -> bool:
         else:
             db_update_user_approval(user_id, False, None)
     return False
+
 
 # ==================== Обработчики личных сообщений ====================
 @dp.message(CommandStart(), F.chat.type == "private")
@@ -624,6 +705,7 @@ async def cmd_start(message: Message, state: FSMContext):
     await message.answer(f"📝 Вопрос 1/{len(questions)}:\n{questions[0]}")
     await state.set_state(ApplicationStates.waiting_for_answer)
 
+
 @dp.message(ApplicationStates.waiting_for_answer, F.text, F.chat.type == "private")
 async def process_application_answer(message: Message, state: FSMContext):
     data = await state.get_data()
@@ -634,7 +716,7 @@ async def process_application_answer(message: Message, state: FSMContext):
     current_q += 1
     if current_q < len(questions):
         await state.update_data(answers=answers, current_q=current_q)
-        await message.answer(f"📝 Вопрос {current_q+1}/{len(questions)}:\n{questions[current_q]}")
+        await message.answer(f"📝 Вопрос {current_q + 1}/{len(questions)}:\n{questions[current_q]}")
     else:
         user_id = message.from_user.id
         user = db_get_user(user_id)
@@ -644,7 +726,7 @@ async def process_application_answer(message: Message, state: FSMContext):
         text += f"👤 Имя: {user['full_name']}\n"
         text += f"📱 Username: {username}\n\n"
         for i, (q, a) in enumerate(zip(questions, answers)):
-            text += f"<b>{i+1}. {q}</b>\n{a}\n\n"
+            text += f"<b>{i + 1}. {q}</b>\n{a}\n\n"
         admins = db_get_all_admins() + [OWNER_ID]
         sent = False
         for admin_id in set(admins):
@@ -658,6 +740,7 @@ async def process_application_answer(message: Message, state: FSMContext):
         else:
             await message.answer("✅ Ваша заявка отправлена администраторам. Ожидайте решения.")
         await state.clear()
+
 
 @dp.callback_query(F.data.startswith(("app_approve_", "app_reject_")))
 async def handle_application_decision(callback: CallbackQuery):
@@ -688,6 +771,7 @@ async def handle_application_decision(callback: CallbackQuery):
         await callback.message.edit_text(callback.message.html_text + "\n\n❌ Заявка отклонена.")
     await callback.answer()
 
+
 @dp.message(F.text == "🚫 Отмена", F.chat.type == "private")
 async def cancel_handler(message: Message, state: FSMContext):
     await state.clear()
@@ -695,6 +779,7 @@ async def cancel_handler(message: Message, state: FSMContext):
     admin = await is_admin(user_id) or is_owner(user_id)
     owner = is_owner(user_id)
     await message.answer("Действие отменено.", reply_markup=get_main_keyboard(admin, owner))
+
 
 @dp.message(F.text == "🔙 Назад", F.chat.type == "private")
 async def back_to_main(message: Message, state: FSMContext):
@@ -704,6 +789,7 @@ async def back_to_main(message: Message, state: FSMContext):
     owner = is_owner(user_id)
     await message.answer("Главное меню", reply_markup=get_main_keyboard(admin, owner))
 
+
 # ==================== Панель владельца ====================
 @dp.message(F.text == "👑 Управление", F.chat.type == "private")
 async def owner_panel(message: Message, state: FSMContext):
@@ -712,13 +798,16 @@ async def owner_panel(message: Message, state: FSMContext):
         return
     await message.answer("👑 Панель управления владельца:", reply_markup=get_owner_panel_keyboard())
 
+
 @dp.message(F.text == "➕ Добавить админа", F.chat.type == "private")
 async def add_admin_start(message: Message, state: FSMContext):
     if not is_owner(message.from_user.id):
         await message.answer("У вас нет прав.")
         return
-    await message.answer("Введите ID пользователя, которого хотите сделать администратором:", reply_markup=get_cancel_keyboard())
+    await message.answer("Введите ID пользователя, которого хотите сделать администратором:",
+                         reply_markup=get_cancel_keyboard())
     await state.set_state(AddAdminStates.waiting_for_user_id)
+
 
 @dp.message(AddAdminStates.waiting_for_user_id, F.text, F.chat.type == "private")
 async def add_admin_user_id(message: Message, state: FSMContext):
@@ -738,6 +827,7 @@ async def add_admin_user_id(message: Message, state: FSMContext):
     )
     await state.set_state(AddAdminStates.waiting_for_confirm)
 
+
 @dp.callback_query(AddAdminStates.waiting_for_confirm, F.data.startswith(("confirm_", "cancel_")))
 async def add_admin_confirm(callback: CallbackQuery, state: FSMContext):
     action = callback.data.split("_", 1)
@@ -754,6 +844,7 @@ async def add_admin_confirm(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     await callback.message.answer("Панель управления", reply_markup=get_owner_panel_keyboard())
 
+
 @dp.message(F.text == "❌ Удалить админа", F.chat.type == "private")
 async def remove_admin_start(message: Message, state: FSMContext):
     if not is_owner(message.from_user.id):
@@ -761,6 +852,7 @@ async def remove_admin_start(message: Message, state: FSMContext):
         return
     await message.answer("Введите ID администратора, которого хотите лишить прав:", reply_markup=get_cancel_keyboard())
     await state.set_state(RemoveAdminStates.waiting_for_user_id)
+
 
 @dp.message(RemoveAdminStates.waiting_for_user_id, F.text, F.chat.type == "private")
 async def remove_admin_user_id(message: Message, state: FSMContext):
@@ -786,6 +878,7 @@ async def remove_admin_user_id(message: Message, state: FSMContext):
     )
     await state.set_state(RemoveAdminStates.waiting_for_confirm)
 
+
 @dp.callback_query(RemoveAdminStates.waiting_for_confirm, F.data.startswith(("confirm_", "cancel_")))
 async def remove_admin_confirm(callback: CallbackQuery, state: FSMContext):
     action = callback.data.split("_", 1)
@@ -802,6 +895,7 @@ async def remove_admin_confirm(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     await callback.message.answer("Панель управления", reply_markup=get_owner_panel_keyboard())
 
+
 @dp.message(F.text == "📢 Установить чат", F.chat.type == "private")
 async def set_chat_start(message: Message, state: FSMContext):
     if not is_owner(message.from_user.id):
@@ -812,6 +906,7 @@ async def set_chat_start(message: Message, state: FSMContext):
         reply_markup=get_cancel_keyboard()
     )
     await state.set_state(SetChatStates.waiting_for_chat_id)
+
 
 @dp.message(SetChatStates.waiting_for_chat_id, F.text, F.chat.type == "private")
 async def set_chat_id(message: Message, state: FSMContext):
@@ -838,6 +933,7 @@ async def set_chat_id(message: Message, state: FSMContext):
     )
     await state.set_state(SetChatStates.waiting_for_confirm)
 
+
 @dp.callback_query(SetChatStates.waiting_for_confirm, F.data.startswith(("confirm_", "cancel_")))
 async def set_chat_confirm(callback: CallbackQuery, state: FSMContext):
     action = callback.data.split("_", 1)
@@ -854,6 +950,7 @@ async def set_chat_confirm(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     await callback.message.answer("Панель управления", reply_markup=get_owner_panel_keyboard())
 
+
 @dp.message(F.text == "🗑 Удалить чат", F.chat.type == "private")
 async def clear_chat(message: Message, state: FSMContext):
     if not is_owner(message.from_user.id):
@@ -866,6 +963,7 @@ async def clear_chat(message: Message, state: FSMContext):
     db_clear_chat_id()
     await message.answer("✅ Чат для публикаций удалён.")
     await message.answer("Панель управления", reply_markup=get_owner_panel_keyboard())
+
 
 # ==================== Отправка файла БД владельцу ====================
 @dp.message(F.text == "📁 profits.db", F.chat.type == "private")
@@ -884,10 +982,12 @@ async def send_db_file(message: Message):
     except Exception as e:
         await message.answer(f"❌ Ошибка при отправке файла: {e}")
 
+
 # ==================== Кнопки меню ====================
 @dp.message(F.text == "📊 Моя статистика", F.chat.type == "private")
 async def my_stats(message: Message):
-    if not await is_user_approved(message.from_user.id) and not await is_admin(message.from_user.id) and not is_owner(message.from_user.id):
+    if not await is_user_approved(message.from_user.id) and not await is_admin(message.from_user.id) and not is_owner(
+            message.from_user.id):
         await message.answer("⏳ Ваша заявка ещё не одобрена.")
         return
     user_id = message.from_user.id
@@ -913,6 +1013,7 @@ async def my_stats(message: Message):
         callback_data="toggle_hide_name"
     )]])
     await message.answer(text, reply_markup=kb)
+
 
 @dp.callback_query(F.data == "toggle_hide_name")
 async def toggle_hide_name(callback: CallbackQuery):
@@ -943,9 +1044,11 @@ async def toggle_hide_name(callback: CallbackQuery):
     )]])
     await safe_edit_message(callback.message, text, reply_markup=kb)
 
+
 @dp.message(F.text == "📦 Паки", F.chat.type == "private")
 async def show_packs(message: Message):
-    if not await is_user_approved(message.from_user.id) and not await is_admin(message.from_user.id) and not is_owner(message.from_user.id):
+    if not await is_user_approved(message.from_user.id) and not await is_admin(message.from_user.id) and not is_owner(
+            message.from_user.id):
         await message.answer("⏳ Ваша заявка ещё не одобрена.")
         return
     buttons_json = db_get_setting('packs_buttons')
@@ -961,17 +1064,24 @@ async def show_packs(message: Message):
         kb.row(InlineKeyboardButton(text=btn['text'], url=btn['url']))
     await message.answer("📦 Доступные паки:", reply_markup=kb.as_markup())
 
+
 @dp.message(F.text == "🗺 Карты", F.chat.type == "private")
 async def show_card(message: Message):
-    if not await is_user_approved(message.from_user.id) and not await is_admin(message.from_user.id) and not is_owner(message.from_user.id):
+    if not await is_user_approved(message.from_user.id) and not await is_admin(message.from_user.id) and not is_owner(
+            message.from_user.id):
         await message.answer("⏳ Ваша заявка ещё не одобрена.")
         return
     card_text = db_get_setting('card_text')
     await safe_send_message(message.chat.id, card_text)
+<<<<<<< HEAD
+=======
+
+>>>>>>> d93ea41 (blyablya)
 
 @dp.message(F.text == "📞 Прозвон", F.chat.type == "private")
 async def show_prozvon(message: Message):
-    if not await is_user_approved(message.from_user.id) and not await is_admin(message.from_user.id) and not is_owner(message.from_user.id):
+    if not await is_user_approved(message.from_user.id) and not await is_admin(message.from_user.id) and not is_owner(
+            message.from_user.id):
         await message.answer("⏳ Ваша заявка ещё не одобрена.")
         return
     buttons_json = db_get_setting('prozvon_buttons')
@@ -987,6 +1097,7 @@ async def show_prozvon(message: Message):
         kb.row(InlineKeyboardButton(text=btn['text'], url=btn['url']))
     await message.answer("📞 Контакты для прозвона:", reply_markup=kb.as_markup())
 
+
 # ==================== Админская кнопка "➕ Новый профит" ====================
 @dp.message(F.text == "➕ Новый профит", F.chat.type == "private")
 async def add_profit_start(message: Message, state: FSMContext):
@@ -996,8 +1107,10 @@ async def add_profit_start(message: Message, state: FSMContext):
     if not is_chat_configured():
         await message.answer("⚠️ Сначала владелец должен настроить чат для публикаций.")
         return
-    await message.answer("Введите ID пользователя, которому хотите начислить профит:", reply_markup=get_cancel_keyboard())
+    await message.answer("Введите ID пользователя, которому хотите начислить профит:",
+                         reply_markup=get_cancel_keyboard())
     await state.set_state(AddProfitStates.waiting_for_user_id)
+
 
 @dp.message(AddProfitStates.waiting_for_user_id, F.text, F.chat.type == "private")
 async def add_profit_user_id(message: Message, state: FSMContext):
@@ -1013,6 +1126,7 @@ async def add_profit_user_id(message: Message, state: FSMContext):
     await state.update_data(target_user_id=user_id)
     await message.answer("Введите сумму профита (в рублях):")
     await state.set_state(AddProfitStates.waiting_for_amount)
+
 
 @dp.message(AddProfitStates.waiting_for_amount, F.text, F.chat.type == "private")
 async def add_profit_amount(message: Message, state: FSMContext):
@@ -1041,7 +1155,8 @@ async def add_profit_amount(message: Message, state: FSMContext):
     if chat_id:
         try:
             if photo_url:
-                await bot.send_photo(chat_id, photo=URLInputFile(photo_url), caption=alert_text, parse_mode=ParseMode.HTML)
+                await bot.send_photo(chat_id, photo=URLInputFile(photo_url), caption=alert_text,
+                                     parse_mode=ParseMode.HTML)
             else:
                 await safe_send_message(chat_id, alert_text)
         except Exception as e:
@@ -1059,6 +1174,7 @@ async def add_profit_amount(message: Message, state: FSMContext):
     await message.answer("✅ Профит успешно добавлен!", reply_markup=get_main_keyboard(admin, owner))
     await state.clear()
 
+
 # ==================== Админская кнопка "🎨 Изменить визуал" ====================
 @dp.message(F.text == "🎨 Изменить визуал", F.chat.type == "private")
 async def edit_visual_start(message: Message, state: FSMContext):
@@ -1068,7 +1184,9 @@ async def edit_visual_start(message: Message, state: FSMContext):
     await message.answer("Выберите, что хотите изменить:", reply_markup=get_edit_visual_keyboard())
     await state.set_state(EditVisualStates.choosing_section)
 
-@dp.callback_query(StateFilter(EditVisualStates.choosing_section), F.data.startswith("edit_"), F.data != "edit_welcome_template")
+
+@dp.callback_query(StateFilter(EditVisualStates.choosing_section), F.data.startswith("edit_"),
+                   F.data != "edit_welcome_template")
 async def edit_visual_section(callback: CallbackQuery, state: FSMContext):
     section = callback.data.split("_")[1]
     if section == "back":
@@ -1083,29 +1201,35 @@ async def edit_visual_section(callback: CallbackQuery, state: FSMContext):
     if section == "packs":
         await state.update_data(section='packs')
         buttons = json.loads(db_get_setting('packs_buttons'))
-        await safe_edit_message(callback.message, "Редактирование паков:", reply_markup=get_buttons_edit_keyboard(buttons, 'packs'))
+        await safe_edit_message(callback.message, "Редактирование паков:",
+                                reply_markup=get_buttons_edit_keyboard(buttons, 'packs'))
         await callback.answer()
     elif section == "card":
         await state.update_data(section='card')
         await safe_edit_message(
             callback.message,
-            "Отправьте новый текст для карты (можно использовать HTML-теги):\nТекущий текст:\n" + db_get_setting('card_text'),
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔙 Назад", callback_data="edit_back")]])
+            "Отправьте новый текст для карты (можно использовать HTML-теги):\nТекущий текст:\n" + db_get_setting(
+                'card_text'),
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text="🔙 Назад", callback_data="edit_back")]])
         )
         await state.set_state(EditVisualStates.editing_card_text)
         await callback.answer()
     elif section == "prozvon":
         await state.update_data(section='prozvon')
         buttons = json.loads(db_get_setting('prozvon_buttons'))
-        await safe_edit_message(callback.message, "Редактирование прозвона:", reply_markup=get_buttons_edit_keyboard(buttons, 'prozvon'))
+        await safe_edit_message(callback.message, "Редактирование прозвона:",
+                                reply_markup=get_buttons_edit_keyboard(buttons, 'prozvon'))
         await callback.answer()
     elif section == "questions":
         questions = db_get_questions()
-        await safe_edit_message(callback.message, "Редактирование вопросов анкеты:", reply_markup=get_questions_edit_keyboard(questions))
+        await safe_edit_message(callback.message, "Редактирование вопросов анкеты:",
+                                reply_markup=get_questions_edit_keyboard(questions))
         await state.update_data(section='questions')
         await callback.answer()
     else:
         await callback.answer()
+
 
 @dp.callback_query(F.data == "edit_welcome_template")
 async def edit_welcome_template_start(callback: CallbackQuery, state: FSMContext):
@@ -1123,6 +1247,7 @@ async def edit_welcome_template_start(callback: CallbackQuery, state: FSMContext
     )
     await state.set_state(EditVisualStates.editing_welcome_template)
 
+
 @dp.message(EditVisualStates.editing_card_text, F.text, F.chat.type == "private")
 async def edit_card_text(message: Message, state: FSMContext):
     db_set_setting('card_text', message.html_text)
@@ -1131,6 +1256,7 @@ async def edit_card_text(message: Message, state: FSMContext):
     admin = await is_admin(message.from_user.id) or is_owner(message.from_user.id)
     owner = is_owner(message.from_user.id)
     await message.answer("Главное меню", reply_markup=get_main_keyboard(admin, owner))
+
 
 @dp.message(EditVisualStates.editing_welcome_template, F.text, F.chat.type == "private")
 async def save_welcome_template(message: Message, state: FSMContext):
@@ -1145,6 +1271,7 @@ async def save_welcome_template(message: Message, state: FSMContext):
     owner = is_owner(message.from_user.id)
     await message.answer("Главное меню", reply_markup=get_main_keyboard(admin, owner))
 
+
 # ==================== Редактирование вопросов анкеты ====================
 @dp.callback_query(F.data.startswith(("q_edit_", "q_del_", "q_add", "q_back")))
 async def handle_questions_edit(callback: CallbackQuery, state: FSMContext):
@@ -1152,7 +1279,8 @@ async def handle_questions_edit(callback: CallbackQuery, state: FSMContext):
     questions = db_get_questions()
 
     if action == "back":
-        await safe_edit_message(callback.message, "Выберите, что хотите изменить:", reply_markup=get_edit_visual_keyboard())
+        await safe_edit_message(callback.message, "Выберите, что хотите изменить:",
+                                reply_markup=get_edit_visual_keyboard())
         await state.set_state(EditVisualStates.choosing_section)
         await callback.answer()
         return
@@ -1166,16 +1294,18 @@ async def handle_questions_edit(callback: CallbackQuery, state: FSMContext):
     index = int(callback.data.split('_')[2])
     if action == "edit":
         await state.update_data(edit_q_index=index)
-        await callback.message.edit_text(f"Введите новый текст для вопроса {index+1}:\nТекущий: {questions[index]}")
+        await callback.message.edit_text(f"Введите новый текст для вопроса {index + 1}:\nТекущий: {questions[index]}")
         await state.set_state(EditVisualStates.editing_question_index)
         await callback.answer()
         return
     elif action == "del":
         del questions[index]
         db_set_questions(questions)
-        await callback.message.edit_text("✅ Вопрос удалён.\nРедактирование вопросов:", reply_markup=get_questions_edit_keyboard(questions))
+        await callback.message.edit_text("✅ Вопрос удалён.\nРедактирование вопросов:",
+                                         reply_markup=get_questions_edit_keyboard(questions))
         await callback.answer()
         return
+
 
 @dp.message(EditVisualStates.adding_question, F.text, F.chat.type == "private")
 async def add_question_text(message: Message, state: FSMContext):
@@ -1187,6 +1317,7 @@ async def add_question_text(message: Message, state: FSMContext):
     admin = await is_admin(message.from_user.id) or is_owner(message.from_user.id)
     owner = is_owner(message.from_user.id)
     await message.answer("Главное меню", reply_markup=get_main_keyboard(admin, owner))
+
 
 @dp.message(EditVisualStates.editing_question_index, F.text, F.chat.type == "private")
 async def edit_question_text(message: Message, state: FSMContext):
@@ -1201,6 +1332,7 @@ async def edit_question_text(message: Message, state: FSMContext):
     owner = is_owner(message.from_user.id)
     await message.answer("Главное меню", reply_markup=get_main_keyboard(admin, owner))
 
+
 # ==================== Редактирование плиток ====================
 @dp.callback_query(F.data.startswith(('packs_', 'prozvon_')))
 async def handle_buttons_edit(callback: CallbackQuery, state: FSMContext):
@@ -1208,7 +1340,8 @@ async def handle_buttons_edit(callback: CallbackQuery, state: FSMContext):
     prefix = parts[0]
     cmd = parts[1]
     if cmd == 'back':
-        await safe_edit_message(callback.message, "Выберите, что хотите изменить:", reply_markup=get_edit_visual_keyboard())
+        await safe_edit_message(callback.message, "Выберите, что хотите изменить:",
+                                reply_markup=get_edit_visual_keyboard())
         await state.set_state(EditVisualStates.choosing_section)
         await callback.answer()
         return
@@ -1225,7 +1358,7 @@ async def handle_buttons_edit(callback: CallbackQuery, state: FSMContext):
         buttons = json.loads(db_get_setting(key))
         btn = buttons[index]
         await safe_edit_message(callback.message,
-            f"Редактирование кнопки:\nТекущий текст: {btn['text']}\nТекущий URL: {btn['url']}\n\nВведите новый текст для кнопки (или '0' без изменений):")
+                                f"Редактирование кнопки:\nТекущий текст: {btn['text']}\nТекущий URL: {btn['url']}\n\nВведите новый текст для кнопки (или '0' без изменений):")
         await state.set_state(EditVisualStates.waiting_for_edit_text)
         await callback.answer()
         return
@@ -1240,11 +1373,13 @@ async def handle_buttons_edit(callback: CallbackQuery, state: FSMContext):
         await callback.answer()
         return
 
+
 @dp.message(EditVisualStates.waiting_for_button_text, F.text, F.chat.type == "private")
 async def handle_button_text(message: Message, state: FSMContext):
     await state.update_data(temp_text=message.text.strip())
     await message.answer("Теперь отправьте ссылку (URL):")
     await state.set_state(EditVisualStates.waiting_for_button_url)
+
 
 @dp.message(EditVisualStates.waiting_for_button_url, F.text, F.chat.type == "private")
 async def handle_button_url(message: Message, state: FSMContext):
@@ -1262,6 +1397,7 @@ async def handle_button_url(message: Message, state: FSMContext):
     owner = is_owner(message.from_user.id)
     await message.answer("Главное меню", reply_markup=get_main_keyboard(admin, owner))
 
+
 @dp.message(EditVisualStates.waiting_for_edit_text, F.text, F.chat.type == "private")
 async def handle_edit_text(message: Message, state: FSMContext):
     new_text = message.text.strip()
@@ -1276,6 +1412,7 @@ async def handle_edit_text(message: Message, state: FSMContext):
     await state.update_data(temp_edit_text=new_text if new_text != '0' else None)
     await message.answer("Введите новый URL для кнопки (или '0' без изменений):")
     await state.set_state(EditVisualStates.waiting_for_edit_url)
+
 
 @dp.message(EditVisualStates.waiting_for_edit_url, F.text, F.chat.type == "private")
 async def handle_edit_url(message: Message, state: FSMContext):
@@ -1294,6 +1431,7 @@ async def handle_edit_url(message: Message, state: FSMContext):
     owner = is_owner(message.from_user.id)
     await message.answer("Главное меню", reply_markup=get_main_keyboard(admin, owner))
 
+
 # ==================== Выплаты ====================
 @dp.message(F.text == "💸 Выплаты", F.chat.type == "private")
 async def payouts_start(message: Message, state: FSMContext):
@@ -1310,6 +1448,7 @@ async def payouts_start(message: Message, state: FSMContext):
     )
     await state.set_state(PayoutStates.choosing_user)
 
+
 @dp.callback_query(PayoutStates.choosing_user, F.data == "payout_back")
 async def payout_back(callback: CallbackQuery, state: FSMContext):
     await callback.message.delete()
@@ -1318,6 +1457,7 @@ async def payout_back(callback: CallbackQuery, state: FSMContext):
     admin = await is_admin(callback.from_user.id) or is_owner(callback.from_user.id)
     owner = is_owner(callback.from_user.id)
     await callback.message.answer("Главное меню", reply_markup=get_main_keyboard(admin, owner))
+
 
 @dp.callback_query(PayoutStates.choosing_user, F.data.startswith("payout_user_"))
 async def payout_user_selected(callback: CallbackQuery, state: FSMContext):
@@ -1345,6 +1485,7 @@ async def payout_user_selected(callback: CallbackQuery, state: FSMContext):
     await state.set_state(PayoutStates.confirm_payment)
     await callback.answer()
 
+
 @dp.callback_query(PayoutStates.confirm_payment, F.data.startswith("payout_confirm_"))
 async def payout_confirm(callback: CallbackQuery, state: FSMContext):
     user_id = int(callback.data.split('_')[2])
@@ -1366,6 +1507,7 @@ async def payout_confirm(callback: CallbackQuery, state: FSMContext):
         await callback.message.answer("Главное меню", reply_markup=get_main_keyboard(admin, owner))
     await callback.answer()
 
+
 @dp.callback_query(PayoutStates.confirm_payment, F.data == "payout_cancel")
 async def payout_cancel(callback: CallbackQuery, state: FSMContext):
     await callback.message.delete()
@@ -1375,10 +1517,12 @@ async def payout_cancel(callback: CallbackQuery, state: FSMContext):
     owner = is_owner(callback.from_user.id)
     await callback.message.answer("Главное меню", reply_markup=get_main_keyboard(admin, owner))
 
+
 # ==================== Команды в групповом чате ====================
 async def send_group_response(message: Message, text: str, delay: int = 60, reply_markup: InlineKeyboardMarkup = None):
     bot_msg = await message.reply(text, reply_markup=reply_markup)
     asyncio.create_task(delete_after_delay(bot, message.chat.id, message.message_id, bot_msg.message_id, delay))
+
 
 @dp.message(Command("top"), F.chat.type.in_({"group", "supergroup"}))
 async def group_top(message: Message):
@@ -1396,12 +1540,14 @@ async def group_top(message: Message):
     lines.append(f"\n<b>Общая касса:</b> {total:.2f} руб.")
     await send_group_response(message, "\n".join(lines), 60, get_stats_switch_keyboard("all"))
 
+
 @dp.message(Command("topd"), F.chat.type.in_({"group", "supergroup"}))
 async def group_topd(message: Message):
     top = db_get_top_daily(10)
     total = db_get_total_profit_daily()
     if not top:
-        await send_group_response(message, f"За сегодня профитов нет.\n<b>Общая касса за сегодня:</b> {total:.2f} руб.", 60)
+        await send_group_response(message, f"За сегодня профитов нет.\n<b>Общая касса за сегодня:</b> {total:.2f} руб.",
+                                  60)
         return
     lines = [f"<b>📅 Топ за сегодня:</b>"]
     for i, u in enumerate(top, 1):
@@ -1412,12 +1558,15 @@ async def group_topd(message: Message):
     lines.append(f"\n<b>Общая касса за сегодня:</b> {total:.2f} руб.")
     await send_group_response(message, "\n".join(lines), 60, get_stats_switch_keyboard("day"))
 
+
 @dp.message(Command("topw"), F.chat.type.in_({"group", "supergroup"}))
 async def group_topw(message: Message):
     top = db_get_top_weekly(10)
     total = db_get_total_profit_weekly()
     if not top:
-        await send_group_response(message, f"За последние 7 дней профитов нет.\n<b>Общая касса за неделю:</b> {total:.2f} руб.", 60)
+        await send_group_response(message,
+                                  f"За последние 7 дней профитов нет.\n<b>Общая касса за неделю:</b> {total:.2f} руб.",
+                                  60)
         return
     lines = [f"<b>📆 Топ за неделю:</b>"]
     for i, u in enumerate(top, 1):
@@ -1427,6 +1576,7 @@ async def group_topw(message: Message):
         lines.append(f"{i}. {name} — {u['total']:.2f} руб.")
     lines.append(f"\n<b>Общая касса за неделю:</b> {total:.2f} руб.")
     await send_group_response(message, "\n".join(lines), 60, get_stats_switch_keyboard("week"))
+
 
 @dp.callback_query(F.data.startswith("stats_"))
 async def stats_switch(callback: CallbackQuery):
@@ -1459,10 +1609,12 @@ async def stats_switch(callback: CallbackQuery):
     await safe_edit_message(callback.message, "\n".join(lines), reply_markup=get_stats_switch_keyboard(current))
     await callback.answer()
 
+
 @dp.message(Command("card"), F.chat.type.in_({"group", "supergroup"}))
 async def group_card(message: Message):
     card_text = db_get_setting('card_text')
     await send_group_response(message, card_text, 30)
+
 
 @dp.message(Command("prozvon"), F.chat.type.in_({"group", "supergroup"}))
 async def group_prozvon(message: Message):
@@ -1479,6 +1631,7 @@ async def group_prozvon(message: Message):
         kb.row(InlineKeyboardButton(text=btn['text'], url=btn['url']))
     bot_msg = await message.reply("📞 Контакты для прозвона:", reply_markup=kb.as_markup())
     asyncio.create_task(delete_after_delay(bot, message.chat.id, message.message_id, bot_msg.message_id, 15))
+
 
 @dp.message(Command("mp"), F.chat.type.in_({"group", "supergroup"}))
 async def group_my_profile(message: Message):
@@ -1502,6 +1655,7 @@ async def group_my_profile(message: Message):
     )
     await send_group_response(message, text, 15)
 
+
 @dp.message(Command("help"), F.chat.type.in_({"group", "supergroup"}))
 async def group_help(message: Message):
     text = (
@@ -1517,11 +1671,13 @@ async def group_help(message: Message):
     )
     await send_group_response(message, text, 15)
 
+
 # ==================== Запуск бота ====================
 async def main():
     init_db()
     db_set_admin(OWNER_ID, True)
     await dp.start_polling(bot)
+
 
 if __name__ == "__main__":
     asyncio.run(main())
